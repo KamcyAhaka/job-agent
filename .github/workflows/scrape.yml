@@ -1,0 +1,26 @@
+# .github/workflows/scrape.yml
+name: Job Scraper Agent
+on:
+  schedule:
+    - cron: '0 8 * * 1-5'  # Weekdays 8am UTC
+  workflow_dispatch:         # Manual trigger too
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+      - name: Run job agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: npx ts-node src/agent.ts
