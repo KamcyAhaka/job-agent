@@ -1,0 +1,26 @@
+{
+  "name": "job-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "scrape": "ts-node src/agent.ts",
+    "notify": "ts-node src/notify.ts",
+    "deploy:functions": "cd functions && npm run deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.1",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.2",
+    "firebase-admin": "^13.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}
