@@ -1,11 +1,24 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// --- AI Studio (@google/generative-ai) — commented out, kept for easy rollback ---
+// import { GoogleGenerativeAI } from '@google/generative-ai';
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// -------------------------------------------------------------------------------------
+
+import { VertexAI } from '@google-cloud/vertexai';
 import { JobListing, MatchedJob } from './types';
 import { scrapeAll } from './scrapers';
 import { findContact } from './contacts';
 import { saveJobs } from './db';
 import 'dotenv/config';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// Vertex AI bills through Google Cloud automatic payments (no prepay credits needed)
+const vertexAI = new VertexAI({
+  project: process.env.GCLOUD_PROJECT!,
+  location: 'us-central1',
+  googleAuthOptions: {
+    credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!),
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  },
+});
 
 const MY_REQUIREMENTS = `
   - Role: Frontend Developer, Full-stack Developer, or Web Team Lead
@@ -22,8 +35,13 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   );
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-04-17' });
+  // const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // AI Studio
+  const model = vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const batches = chunkArray(jobs, 10);
   const filtered: MatchedJob[] = [];
 
@@ -43,14 +61,32 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
       Return [] if no matches. Return ONLY raw JSON, no markdown or backticks.
     `;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text().replace(/```json|```/g, '').trim();
-      const matches: MatchedJob[] = JSON.parse(text);
-      filtered.push(...matches.map(j => ({ ...j, notified: false })));
-    } catch (err) {
-      console.error('AI filter error:', err);
+    let attempt = 0;
+    const maxAttempts = 3;
+    while (attempt < maxAttempts) {
+      try {
+        const result = await model.generateContent(prompt);
+        // Vertex AI SDK uses candidates array instead of .text() helper
+        const raw = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        const text = raw.replace(/```json|```/g, '').trim();
+        const matches: MatchedJob[] = JSON.parse(text);
+        filtered.push(...matches.map(j => ({ ...j, notified: false })));
+        break;
+      } catch (err: any) {
+        const is429 = err?.status === 429 || err?.message?.includes('429');
+        attempt++;
+        if (is429 && attempt < maxAttempts) {
+          const waitMs = 15000 * attempt; // 15s, 30s
+          console.warn(`Rate limit hit. Retrying in ${waitMs / 1000}s... (attempt ${attempt}/${maxAttempts})`);
+          await sleep(waitMs);
+        } else {
+          console.error('AI filter error:', err);
+          break;
+        }
+      }
     }
+    // Small delay between batches to stay within RPM limits
+    await sleep(2000);
   }
 
   return filtered;

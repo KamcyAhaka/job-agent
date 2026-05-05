@@ -32,9 +32,7 @@ export async function saveJobs(jobs: MatchedJob[]): Promise<void> {
   console.log(`Saved ${newCount} new jobs to Firestore.`);
 }
 
-export async function getUnnotifiedJobs(): Promise
-  { id: string; data: MatchedJob }[]
-> {
+export async function getUnnotifiedJobs(): Promise<{ id: string; data: MatchedJob }[]> {
   const snapshot = await db
     .collection('job_leads')
     .where('notified', '==', false)
