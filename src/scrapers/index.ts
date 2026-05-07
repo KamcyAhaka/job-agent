@@ -1,5 +1,6 @@
 import { scrapeGreenhouse } from './greenhouse';
 import { scrapeLever } from './lever';
+import { scrapeAshby } from './ashby';
 import { JobListing } from '../types';
 
 export const KEYWORDS = [
@@ -8,10 +9,11 @@ export const KEYWORDS = [
 ];
 
 export async function scrapeAll(): Promise<JobListing[]> {
-  const [greenhouse, lever] = await Promise.all([
+  const [greenhouse, lever, ashby] = await Promise.all([
     scrapeGreenhouse(KEYWORDS),
     scrapeLever(KEYWORDS),
+    scrapeAshby(KEYWORDS),
   ]);
 
-  return [...greenhouse, ...lever];
+  return [...greenhouse, ...lever, ...ashby];
 }

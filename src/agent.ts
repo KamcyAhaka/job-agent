@@ -7,7 +7,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 import { JobListing, MatchedJob } from './types';
 import { scrapeAll } from './scrapers';
 import { findContact } from './contacts';
-import { saveJobs } from './db';
+import { saveJobs, filterNewJobs, saveRejectedJobs } from './db';
 import 'dotenv/config';
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
@@ -25,10 +25,14 @@ const vertexAI = new VertexAI({
 const MY_REQUIREMENTS = `
   - Role: Frontend Developer, Full-stack Developer, or Web Team Lead
   - Stack: Vue.js, Nuxt.js, TypeScript, Firebase, React, Next.js, React Native
-  - Type: Remote (Worldwide/EMEA) (FAVOR Africa-friendly locations)
-  - Location: Based in Lagos, Nigeria (FAVOR EMEA-friendly timezones or Global Remote)
+  - Location: Based in Lagos, Nigeria (Timezone: GMT+1/WAT)
+  - Remote Preference:
+    - HIGH PRIORITY: Fully Remote (Worldwide or EMEA-based)
+    - FAVOR: Companies with existing African presence or open to hiring in Nigeria
+  - Relocation/Visa:
+    - Only consider non-remote roles IF they explicitly offer visa sponsorship and relocation support.
+    - If the listing requires existing local legal right to work (e.g., "Must be a US citizen", "EU right to work required"), REJECT it unless sponsorship is mentioned.
   - Seniority: Mid to Senior level
-  - Industry: Tech, Nonprofit, or Social Impact
   - EXCLUDE: Project Manager, Product Manager, or any non-engineering roles
 `;
 
@@ -43,6 +47,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 function startSpinner(label: string): () => void {
+  if (!process.stdout.isTTY) {
+    console.log(`[AI] ${label}`);
+    return () => {};
+  }
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
   let i = 0;
   process.stdout.write('\n');
@@ -116,8 +124,21 @@ async function run(): Promise<void> {
   const raw = await scrapeAll();
   console.log(`Found ${raw.length} raw listings.`);
 
-  const matched = await filterWithAI(raw);
+  const newJobs = await filterNewJobs(raw);
+  console.log(`${newJobs.length} are new. (${raw.length - newJobs.length} already seen)`);
+
+  if (newJobs.length === 0) {
+    console.log('✅ No new jobs to process.');
+    return;
+  }
+
+  const matched = await filterWithAI(newJobs);
   console.log(`${matched.length} strong matches found.`);
+
+  // Optimization: Save REJECTED jobs too so we don't pay to analyze them again
+  const matchedUrls = new Set(matched.map(m => m.url));
+  const rejected = newJobs.filter(j => !matchedUrls.has(j.url));
+  await saveRejectedJobs(rejected);
 
   for (const job of matched) {
     job.contact = await findContact(job.company);

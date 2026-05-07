@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { MatchedJob } from './types';
+import { MatchedJob, JobListing } from './types';
 import 'dotenv/config';
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
@@ -10,26 +10,57 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-export async function saveJobs(jobs: MatchedJob[]): Promise<void> {
-  const batch = db.batch();
-  let newCount = 0;
+export function getJobDocId(url: string): string {
+  return Buffer.from(url).toString('base64url');
+}
 
+export async function filterNewJobs<T extends { url: string }>(jobs: T[]): Promise<T[]> {
+  const newJobs: T[] = [];
   for (const job of jobs) {
-    const id = Buffer.from(job.url).toString('base64url');
-    const ref = db.collection('job_leads').doc(id);
-    const existing = await ref.get();
-
-    if (!existing.exists) {
-      batch.set(ref, {
-        ...job,
-        savedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      newCount++;
+    const id = getJobDocId(job.url);
+    // Check both collections
+    const [leadDoc, rejectedDoc] = await Promise.all([
+      db.collection('job_leads').doc(id).get(),
+      db.collection('rejected_leads').doc(id).get()
+    ]);
+    
+    if (!leadDoc.exists && !rejectedDoc.exists) {
+      newJobs.push(job);
     }
   }
+  return newJobs;
+}
 
+export async function saveJobs(jobs: MatchedJob[]): Promise<void> {
+  if (jobs.length === 0) return;
+  const batch = db.batch();
+  for (const job of jobs) {
+    const id = getJobDocId(job.url);
+    const ref = db.collection('job_leads').doc(id);
+    batch.set(ref, {
+      ...job,
+      savedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
   await batch.commit();
-  console.log(`Saved ${newCount} new jobs to Firestore.`);
+  console.log(`Saved ${jobs.length} matches to Firestore.`);
+}
+
+export async function saveRejectedJobs(jobs: JobListing[]): Promise<void> {
+  if (jobs.length === 0) return;
+  const batch = db.batch();
+  for (const job of jobs) {
+    const id = getJobDocId(job.url);
+    const ref = db.collection('rejected_leads').doc(id);
+    batch.set(ref, {
+      ...job,
+      matchScore: 0,
+      matchReason: 'Automatically rejected (low score)',
+      savedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  console.log(`Marked ${jobs.length} rejected jobs as "seen" in rejected_leads.`);
 }
 
 export async function getUnnotifiedJobs(): Promise<{ id: string; data: MatchedJob }[]> {
