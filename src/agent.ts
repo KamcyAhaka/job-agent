@@ -10,12 +10,14 @@ import { findContact } from './contacts';
 import { saveJobs } from './db';
 import 'dotenv/config';
 
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+
 // Vertex AI bills through Google Cloud automatic payments (no prepay credits needed)
 const vertexAI = new VertexAI({
-  project: process.env.GCLOUD_PROJECT!,
+  project: process.env.GCLOUD_PROJECT || serviceAccount.project_id,
   location: 'us-central1',
   googleAuthOptions: {
-    credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!),
+    credentials: serviceAccount,
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   },
 });

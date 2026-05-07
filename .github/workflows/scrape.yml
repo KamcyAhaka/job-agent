@@ -19,6 +19,7 @@ jobs:
         run: npx playwright install chromium --with-deps
       - name: Run job agent
         env:
+          GCLOUD_PROJECT: ${{ secrets.GCLOUD_PROJECT }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
