@@ -23,7 +23,8 @@ const vertexAI = new VertexAI({
 const MY_REQUIREMENTS = `
   - Role: Frontend Developer, Full-stack Developer, or Web Team Lead
   - Stack: Vue.js, Nuxt.js, TypeScript, Firebase, React, Next.js, React Native
-  - Type: Remote or hybrid preferred
+  - Type: Remote (Worldwide/EMEA) (FAVOR Africa-friendly locations)
+  - Location: Based in Lagos, Nigeria (FAVOR EMEA-friendly timezones or Global Remote)
   - Seniority: Mid to Senior level
   - Industry: Tech, Nonprofit, or Social Impact
   - EXCLUDE: Project Manager, Product Manager, or any non-engineering roles
@@ -37,6 +38,19 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function startSpinner(label: string): () => void {
+  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  let i = 0;
+  process.stdout.write('\n');
+  const id = setInterval(() => {
+    process.stdout.write(`\r${frames[i++ % frames.length]}  ${label}`);
+  }, 80);
+  return () => {
+    clearInterval(id);
+    process.stdout.write('\r\x1b[K'); // clear spinner line
+  };
 }
 
 async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
@@ -64,8 +78,10 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
     let attempt = 0;
     const maxAttempts = 3;
     while (attempt < maxAttempts) {
+      const stopSpinner = startSpinner(`Vertex AI filtering batch ${batches.indexOf(batch) + 1}/${batches.length}...`);
       try {
         const result = await model.generateContent(prompt);
+        stopSpinner();
         // Vertex AI SDK uses candidates array instead of .text() helper
         const raw = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         const text = raw.replace(/```json|```/g, '').trim();
@@ -73,6 +89,7 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
         filtered.push(...matches.map(j => ({ ...j, notified: false })));
         break;
       } catch (err: any) {
+        stopSpinner();
         const is429 = err?.status === 429 || err?.message?.includes('429');
         attempt++;
         if (is429 && attempt < maxAttempts) {

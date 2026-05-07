@@ -15,7 +15,7 @@ export async function saveJobs(jobs: MatchedJob[]): Promise<void> {
   let newCount = 0;
 
   for (const job of jobs) {
-    const id = Buffer.from(job.url).toString('base64').slice(0, 20);
+    const id = Buffer.from(job.url).toString('base64url');
     const ref = db.collection('job_leads').doc(id);
     const existing = await ref.get();
 

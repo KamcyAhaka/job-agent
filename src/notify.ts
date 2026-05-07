@@ -16,20 +16,23 @@ function buildSlackBlocks(jobs: { id: string; data: MatchedJob }[]) {
   ];
 
   for (const { data: j } of jobs) {
-    const fields: object[] = [
-      { type: 'mrkdwn', text: `📍 *Location:*\n${j.location}` },
-      { type: 'mrkdwn', text: `⭐ *Match Score:*\n${j.matchScore}/10` },
-    ];
-
-    if (j.contact?.email) {
-      fields.push({ type: 'mrkdwn', text: `📧 *Contact:*\n${j.contact.email}` });
-    }
-
+    // Each job now adds 4 blocks (instead of 5) to save space
     blocks.push(
-      { type: 'section', text: { type: 'mrkdwn', text: `*<${j.url}|${j.title}>*\n🏢 ${j.company}` } },
-      { type: 'section', fields },
-      { type: 'context', elements: [{ type: 'mrkdwn', text: `💡 ${j.matchReason}` }] },
-      { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: '🔗 View Job' }, url: j.url, style: 'primary' }] },
+      { 
+        type: 'section', 
+        text: { type: 'mrkdwn', text: `*<${j.url}|${j.title}>* at *${j.company}*\n📍 ${j.location} | ⭐ Score: ${j.matchScore}/10` } 
+      },
+      { 
+        type: 'context', 
+        elements: [
+          { type: 'mrkdwn', text: `💡 ${j.matchReason}` },
+          ...(j.contact?.email ? [{ type: 'mrkdwn', text: `📧 ${j.contact.email}` }] : [])
+        ] 
+      },
+      { 
+        type: 'actions', 
+        elements: [{ type: 'button', text: { type: 'plain_text', text: '🔗 View Job' }, url: j.url, style: 'primary' }] 
+      },
       { type: 'divider' }
     );
   }
@@ -50,10 +53,13 @@ export async function sendSlackDigest(): Promise<void> {
   const res = await fetch(process.env.SLACK_WEBHOOK_URL!, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blocks }),
+    body: JSON.stringify({ blocks: blocks.slice(0, 50) }), // Absolute safety cap
   });
 
-  if (!res.ok) throw new Error(`Slack error: ${res.statusText}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Slack error: ${res.statusText} - ${body}`);
+  }
 
   await markAsNotified(jobs.map(j => j.id));
   console.log(`✅ Slack digest sent — ${jobs.length} jobs.`);
