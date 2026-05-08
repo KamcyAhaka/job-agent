@@ -7,7 +7,14 @@
     "build": "tsc",
     "scrape": "ts-node src/agent.ts",
     "notify": "ts-node src/notify.ts",
-    "deploy:functions": "cd functions && npm run deploy"
+    "deploy:functions": "cd functions && npm run deploy",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -21,6 +28,13 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.3",
+    "prettier": "^3.8.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   }
