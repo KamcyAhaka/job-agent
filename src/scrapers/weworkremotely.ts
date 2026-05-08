@@ -1,19 +1,21 @@
 import { JobListing } from '../types';
 
-export async function scrapeWWR(keywords: readonly string[]): Promise<JobListing[]> {
+export async function scrapeWWR(
+  keywords: readonly string[],
+): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   try {
     const res = await fetch('https://weworkremotely.com/api/v1/posts');
     if (!res.ok) return [];
 
-    const data = await res.json() as { jobs: any[] };
+    const data = (await res.json()) as { jobs: any[] };
 
     for (const job of data.jobs) {
-      const titleMatch = keywords.some(k =>
-        job.title?.toLowerCase().includes(k.toLowerCase())
+      const titleMatch = keywords.some((k) =>
+        job.title?.toLowerCase().includes(k.toLowerCase()),
       );
-      
+
       if (titleMatch) {
         jobs.push({
           title: job.title,

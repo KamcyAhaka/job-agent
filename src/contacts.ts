@@ -35,14 +35,14 @@ export async function findContact(company: string): Promise<ContactResult> {
     const res = await fetch(url.toString());
     if (!res.ok) return {};
 
-    const data = await res.json() as HunterResponse;
+    const data = (await res.json()) as HunterResponse;
     const emails = data.data?.emails ?? [];
     if (!emails.length) return {};
 
-    const preferred = emails.find(e =>
-      config.preferredContactRoles.some(role =>
-        e.position?.toLowerCase().includes(role)
-      )
+    const preferred = emails.find((e) =>
+      config.preferredContactRoles.some((role) =>
+        e.position?.toLowerCase().includes(role),
+      ),
     );
 
     const best = preferred ?? emails[0];

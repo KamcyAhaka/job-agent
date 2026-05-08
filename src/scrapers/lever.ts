@@ -1,8 +1,6 @@
 import { JobListing } from '../types';
 
-const LEVER_COMPANIES = [
-  'netflix', 'shopify', 'atlassian', 'discord', 'canva',
-];
+const LEVER_COMPANIES = ['netflix', 'shopify', 'atlassian', 'discord', 'canva'];
 
 interface LeverJob {
   text: string;
@@ -11,21 +9,23 @@ interface LeverJob {
   createdAt: number;
 }
 
-export async function scrapeLever(keywords: readonly string[]): Promise<JobListing[]> {
+export async function scrapeLever(
+  keywords: readonly string[],
+): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   for (const company of LEVER_COMPANIES) {
     try {
       const res = await fetch(
-        `https://api.lever.co/v0/postings/${company}?mode=json`
+        `https://api.lever.co/v0/postings/${company}?mode=json`,
       );
       if (!res.ok) continue;
 
-      const data = await res.json() as LeverJob[];
+      const data = (await res.json()) as LeverJob[];
 
       for (const job of data) {
-        const titleMatch = keywords.some(k =>
-          job.text.toLowerCase().includes(k.toLowerCase())
+        const titleMatch = keywords.some((k) =>
+          job.text.toLowerCase().includes(k.toLowerCase()),
         );
         if (titleMatch) {
           jobs.push({

@@ -7,14 +7,19 @@ function buildSlackBlocks(jobs: { id: string; data: MatchedJob }[]) {
   const blocks: object[] = [
     {
       type: 'header',
-      text: { type: 'plain_text', text: `🔍 Job Leads — ${new Date().toDateString()}` },
+      text: {
+        type: 'plain_text',
+        text: `🔍 Job Leads — ${new Date().toDateString()}`,
+      },
     },
     {
       type: 'context',
-      elements: [{
-        type: 'mrkdwn',
-        text: `*${jobs.length} new match${jobs.length > 1 ? 'es' : ''}* found today`,
-      }],
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `*${jobs.length} new match${jobs.length > 1 ? 'es' : ''}* found today`,
+        },
+      ],
     },
     { type: 'divider' },
   ];
@@ -32,19 +37,23 @@ function buildSlackBlocks(jobs: { id: string; data: MatchedJob }[]) {
         type: 'context',
         elements: [
           { type: 'mrkdwn', text: `💡 ${j.matchReason}` },
-          ...(j.contact?.email ? [{ type: 'mrkdwn', text: `📧 ${j.contact.email}` }] : []),
+          ...(j.contact?.email
+            ? [{ type: 'mrkdwn', text: `📧 ${j.contact.email}` }]
+            : []),
         ],
       },
       {
         type: 'actions',
-        elements: [{
-          type: 'button',
-          text: { type: 'plain_text', text: '🔗 View Job' },
-          url: j.url,
-          style: 'primary',
-        }],
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '🔗 View Job' },
+            url: j.url,
+            style: 'primary',
+          },
+        ],
       },
-      { type: 'divider' }
+      { type: 'divider' },
     );
   }
 
@@ -64,7 +73,9 @@ export async function sendSlackDigest(): Promise<void> {
   const res = await fetch(process.env.SLACK_WEBHOOK_URL!, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ blocks: blocks.slice(0, config.slackBlockSafetyCap) }),
+    body: JSON.stringify({
+      blocks: blocks.slice(0, config.slackBlockSafetyCap),
+    }),
   });
 
   if (!res.ok) {
@@ -72,7 +83,7 @@ export async function sendSlackDigest(): Promise<void> {
     throw new Error(`Slack error: ${res.statusText} - ${body}`);
   }
 
-  await markAsNotified(jobs.map(j => j.id));
+  await markAsNotified(jobs.map((j) => j.id));
   console.log(`✅ Slack digest sent — ${jobs.length} jobs.`);
 }
 

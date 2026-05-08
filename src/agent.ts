@@ -24,20 +24,20 @@ const MY_REQUIREMENTS = `
   - Seniority: ${config.requirements.seniority}
   - Location: ${config.requirements.location}
   - Remote Preference:
-    ${config.requirements.remotePreference.map(r => `• ${r}`).join('\n    ')}
+    ${config.requirements.remotePreference.map((r) => `• ${r}`).join('\n    ')}
   - Relocation/Visa Policy:
-    ${config.requirements.relocationPolicy.map(r => `• ${r}`).join('\n    ')}
+    ${config.requirements.relocationPolicy.map((r) => `• ${r}`).join('\n    ')}
   - EXCLUDE: ${config.requirements.exclude.join(', ')}
 `;
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
-    arr.slice(i * size, i * size + size)
+    arr.slice(i * size, i * size + size),
   );
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function startSpinner(label: string): () => void {
@@ -81,15 +81,16 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
     let attempt = 0;
     while (attempt < config.maxRetries) {
       const stopSpinner = startSpinner(
-        `Vertex AI filtering batch ${batches.indexOf(batch) + 1}/${batches.length}...`
+        `Vertex AI filtering batch ${batches.indexOf(batch) + 1}/${batches.length}...`,
       );
       try {
         const result = await model.generateContent(prompt);
         stopSpinner();
-        const raw = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        const raw =
+          result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         const text = raw.replace(/```json|```/g, '').trim();
         const matches: MatchedJob[] = JSON.parse(text);
-        filtered.push(...matches.map(j => ({ ...j, notified: false })));
+        filtered.push(...matches.map((j) => ({ ...j, notified: false })));
         break;
       } catch (err: any) {
         stopSpinner();
@@ -97,7 +98,9 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
         attempt++;
         if (is429 && attempt < config.maxRetries) {
           const waitMs = config.retryDelayMs * attempt;
-          console.warn(`Rate limit hit. Retrying in ${waitMs / 1000}s... (attempt ${attempt}/${config.maxRetries})`);
+          console.warn(
+            `Rate limit hit. Retrying in ${waitMs / 1000}s... (attempt ${attempt}/${config.maxRetries})`,
+          );
           await sleep(waitMs);
         } else {
           console.error('AI filter error:', err);
@@ -117,7 +120,9 @@ async function run(): Promise<void> {
   console.log(`Found ${raw.length} raw listings.`);
 
   const newJobs = await filterNewJobs(raw);
-  console.log(`${newJobs.length} are new. (${raw.length - newJobs.length} already seen)`);
+  console.log(
+    `${newJobs.length} are new. (${raw.length - newJobs.length} already seen)`,
+  );
 
   if (newJobs.length === 0) {
     console.log('✅ No new jobs to process.');
@@ -128,8 +133,8 @@ async function run(): Promise<void> {
   console.log(`${matched.length} strong matches found.`);
 
   // Optimization: Save REJECTED jobs too so we don't pay to analyze them again
-  const matchedUrls = new Set(matched.map(m => m.url));
-  const rejected = newJobs.filter(j => !matchedUrls.has(j.url));
+  const matchedUrls = new Set(matched.map((m) => m.url));
+  const rejected = newJobs.filter((j) => !matchedUrls.has(j.url));
   await saveRejectedJobs(rejected);
 
   for (const job of matched) {

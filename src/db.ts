@@ -14,16 +14,18 @@ export function getJobDocId(url: string): string {
   return Buffer.from(url).toString('base64url');
 }
 
-export async function filterNewJobs<T extends { url: string }>(jobs: T[]): Promise<T[]> {
+export async function filterNewJobs<T extends { url: string }>(
+  jobs: T[],
+): Promise<T[]> {
   const newJobs: T[] = [];
   for (const job of jobs) {
     const id = getJobDocId(job.url);
     // Check both collections
     const [leadDoc, rejectedDoc] = await Promise.all([
       db.collection('job_leads').doc(id).get(),
-      db.collection('rejected_leads').doc(id).get()
+      db.collection('rejected_leads').doc(id).get(),
     ]);
-    
+
     if (!leadDoc.exists && !rejectedDoc.exists) {
       newJobs.push(job);
     }
@@ -60,18 +62,22 @@ export async function saveRejectedJobs(jobs: JobListing[]): Promise<void> {
     });
   }
   await batch.commit();
-  console.log(`Marked ${jobs.length} rejected jobs as "seen" in rejected_leads.`);
+  console.log(
+    `Marked ${jobs.length} rejected jobs as "seen" in rejected_leads.`,
+  );
 }
 
-export async function getUnnotifiedJobs(limit = 20): Promise<{ id: string; data: MatchedJob }[]> {
+export async function getUnnotifiedJobs(
+  limit = 20,
+): Promise<{ id: string; data: MatchedJob }[]> {
   const snapshot = await db
     .collection('job_leads')
     .where('notified', '==', false)
     .orderBy('savedAt', 'desc')
-    .limit(limit)  // ← now uses the parameter
+    .limit(limit) // ← now uses the parameter
     .get();
 
-  return snapshot.docs.map(doc => ({
+  return snapshot.docs.map((doc) => ({
     id: doc.id,
     data: doc.data() as MatchedJob,
   }));
@@ -79,7 +85,7 @@ export async function getUnnotifiedJobs(limit = 20): Promise<{ id: string; data:
 
 export async function markAsNotified(ids: string[]): Promise<void> {
   const batch = db.batch();
-  ids.forEach(id => {
+  ids.forEach((id) => {
     batch.update(db.collection('job_leads').doc(id), { notified: true });
   });
   await batch.commit();
@@ -92,5 +98,5 @@ export async function queryJobs(limit = 10): Promise<MatchedJob[]> {
     .limit(limit)
     .get();
 
-  return snapshot.docs.map(doc => doc.data() as MatchedJob);
+  return snapshot.docs.map((doc) => doc.data() as MatchedJob);
 }

@@ -6,14 +6,15 @@ export const config = {
 
   // ─── Your Job Requirements ───────────────────────────────
   requirements: {
-    roles: [
-      'Frontend Developer',
-      'Full-stack Developer',
-      'Web Team Lead',
-    ],
+    roles: ['Frontend Developer', 'Full-stack Developer', 'Web Team Lead'],
     stack: [
-      'Vue.js', 'Nuxt.js', 'TypeScript', 'Firebase',
-      'React', 'Next.js', 'React Native',
+      'Vue.js',
+      'Nuxt.js',
+      'TypeScript',
+      'Firebase',
+      'React',
+      'Next.js',
+      'React Native',
     ],
     seniority: 'Mid to Senior',
     location: 'Lagos, Nigeria (Timezone: GMT+1/WAT)',
@@ -25,31 +26,38 @@ export const config = {
       'Only consider non-remote roles IF they explicitly offer visa sponsorship and relocation support.',
       'If the listing requires existing local right to work (e.g., "Must be a US citizen", "EU right to work required"), REJECT it unless sponsorship is mentioned.',
     ],
-    exclude: [
-      'Project Manager',
-      'Product Manager',
-      'Non-engineering roles',
-    ],
+    exclude: ['Project Manager', 'Product Manager', 'Non-engineering roles'],
   },
 
   // ─── Scraper Keywords ────────────────────────────────────
   keywords: [
-    'frontend', 'front-end', 'vue', 'nuxt',
-    'react', 'next.js', 'full stack', 'fullstack',
-    'web lead', 'typescript',
+    'frontend',
+    'front-end',
+    'vue',
+    'nuxt',
+    'react',
+    'next.js',
+    'full stack',
+    'fullstack',
+    'web lead',
+    'typescript',
   ],
 
   // ─── Job Boards ──────────────────────────────────────────
   greenhouse: [
-    'airbnb', 'stripe', 'notion', 'figma', 'linear',
-    'vercel', 'supabase', 'clerk', 'resend', 'planetscale',
+    'airbnb',
+    'stripe',
+    'notion',
+    'figma',
+    'linear',
+    'vercel',
+    'supabase',
+    'clerk',
+    'resend',
+    'planetscale',
   ],
-  lever: [
-    'netflix', 'shopify', 'atlassian', 'discord', 'canva',
-  ],
-  ashby: [
-    'ramp', 'mercury', 'retool', 'brex', 'loom',
-  ],
+  lever: ['netflix', 'shopify', 'atlassian', 'discord', 'canva'],
+  ashby: ['ramp', 'mercury', 'retool', 'brex', 'loom'],
 
   // ─── Notifications ───────────────────────────────────────
   maxJobsPerDigest: 20,

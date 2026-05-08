@@ -8,7 +8,11 @@
     "scrape": "ts-node src/agent.ts",
     "notify": "ts-node src/notify.ts",
     "deploy:functions": "cd functions && npm run deploy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src"
   },
   "lint-staged": {
     "src/**/*.{ts,js}": [

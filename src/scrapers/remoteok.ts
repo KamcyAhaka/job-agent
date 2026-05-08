@@ -1,22 +1,24 @@
 import { JobListing } from '../types';
 
-export async function scrapeRemoteOK(keywords: readonly string[]): Promise<JobListing[]> {
+export async function scrapeRemoteOK(
+  keywords: readonly string[],
+): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   try {
     const res = await fetch('https://remoteok.com/api');
     if (!res.ok) return [];
 
-    const data = await res.json() as any[];
-    
+    const data = (await res.json()) as any[];
+
     // RemoteOK API: first item is usually a legal/meta object, skip it
     const listings = data.slice(1);
 
     for (const job of listings) {
-      const titleMatch = keywords.some(k =>
-        job.position?.toLowerCase().includes(k.toLowerCase())
+      const titleMatch = keywords.some((k) =>
+        job.position?.toLowerCase().includes(k.toLowerCase()),
       );
-      
+
       if (titleMatch) {
         jobs.push({
           title: job.position,

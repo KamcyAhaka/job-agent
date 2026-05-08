@@ -1,8 +1,16 @@
 import { JobListing } from '../types';
 
 const GREENHOUSE_COMPANIES = [
-  'airbnb', 'stripe', 'notion', 'figma', 'linear',
-  'vercel', 'supabase', 'planetscale', 'clerk', 'resend',
+  'airbnb',
+  'stripe',
+  'notion',
+  'figma',
+  'linear',
+  'vercel',
+  'supabase',
+  'planetscale',
+  'clerk',
+  'resend',
 ];
 
 interface GreenhouseJob {
@@ -13,21 +21,23 @@ interface GreenhouseJob {
   updated_at: string;
 }
 
-export async function scrapeGreenhouse(keywords: readonly string[]): Promise<JobListing[]> {
+export async function scrapeGreenhouse(
+  keywords: readonly string[],
+): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   for (const company of GREENHOUSE_COMPANIES) {
     try {
       const res = await fetch(
-        `https://boards-api.greenhouse.io/v1/boards/${company}/jobs?content=true`
+        `https://boards-api.greenhouse.io/v1/boards/${company}/jobs?content=true`,
       );
       if (!res.ok) continue;
 
-      const data = await res.json() as { jobs: GreenhouseJob[] };
+      const data = (await res.json()) as { jobs: GreenhouseJob[] };
 
       for (const job of data.jobs) {
-        const titleMatch = keywords.some(k =>
-          job.title.toLowerCase().includes(k.toLowerCase())
+        const titleMatch = keywords.some((k) =>
+          job.title.toLowerCase().includes(k.toLowerCase()),
         );
         if (titleMatch) {
           jobs.push({
