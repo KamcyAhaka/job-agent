@@ -1,6 +1,6 @@
 import { JobListing } from '../types';
 
-export async function scrapeWWR(keywords: string[]): Promise<JobListing[]> {
+export async function scrapeWWR(keywords: readonly string[]): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   try {

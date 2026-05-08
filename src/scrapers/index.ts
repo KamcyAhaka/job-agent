@@ -4,19 +4,15 @@ import { scrapeAshby } from './ashby';
 import { scrapeRemoteOK } from './remoteok';
 import { scrapeWWR } from './weworkremotely';
 import { JobListing } from '../types';
-
-export const KEYWORDS = [
-  'frontend', 'front-end', 'vue', 'nuxt',
-  'react', 'next.js', 'full stack', 'fullstack', 'web lead',
-];
+import { config } from '../config';
 
 export async function scrapeAll(): Promise<JobListing[]> {
   const [greenhouse, lever, ashby, remoteok, wwr] = await Promise.all([
-    scrapeGreenhouse(KEYWORDS),
-    scrapeLever(KEYWORDS),
-    scrapeAshby(KEYWORDS),
-    scrapeRemoteOK(KEYWORDS),
-    scrapeWWR(KEYWORDS),
+    scrapeGreenhouse(config.keywords),
+    scrapeLever(config.keywords),
+    scrapeAshby(config.keywords),
+    scrapeRemoteOK(config.keywords),
+    scrapeWWR(config.keywords),
   ]);
 
   return [...greenhouse, ...lever, ...ashby, ...remoteok, ...wwr];

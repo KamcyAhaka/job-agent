@@ -11,7 +11,7 @@ interface LeverJob {
   createdAt: number;
 }
 
-export async function scrapeLever(keywords: string[]): Promise<JobListing[]> {
+export async function scrapeLever(keywords: readonly string[]): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   for (const company of LEVER_COMPANIES) {

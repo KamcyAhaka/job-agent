@@ -1,39 +1,33 @@
-// --- AI Studio (@google/generative-ai) — commented out, kept for easy rollback ---
-// import { GoogleGenerativeAI } from '@google/generative-ai';
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-// -------------------------------------------------------------------------------------
-
 import { VertexAI } from '@google-cloud/vertexai';
 import { JobListing, MatchedJob } from './types';
 import { scrapeAll } from './scrapers';
 import { findContact } from './contacts';
 import { saveJobs, filterNewJobs, saveRejectedJobs } from './db';
+import { config } from './config';
 import 'dotenv/config';
 
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
 
-// Vertex AI bills through Google Cloud automatic payments (no prepay credits needed)
 const vertexAI = new VertexAI({
   project: process.env.GCLOUD_PROJECT || serviceAccount.project_id,
-  location: 'us-central1',
+  location: config.vertexLocation,
   googleAuthOptions: {
     credentials: serviceAccount,
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   },
 });
 
+// Built from config — no more hardcoded requirements string
 const MY_REQUIREMENTS = `
-  - Role: Frontend Developer, Full-stack Developer, or Web Team Lead
-  - Stack: Vue.js, Nuxt.js, TypeScript, Firebase, React, Next.js, React Native
-  - Location: Based in Lagos, Nigeria (Timezone: GMT+1/WAT)
+  - Roles: ${config.requirements.roles.join(', ')}
+  - Stack: ${config.requirements.stack.join(', ')}
+  - Seniority: ${config.requirements.seniority}
+  - Location: ${config.requirements.location}
   - Remote Preference:
-    - HIGH PRIORITY: Fully Remote (Worldwide or EMEA-based)
-    - FAVOR: Companies with existing African presence or open to hiring in Nigeria
-  - Relocation/Visa:
-    - Only consider non-remote roles IF they explicitly offer visa sponsorship and relocation support.
-    - If the listing requires existing local legal right to work (e.g., "Must be a US citizen", "EU right to work required"), REJECT it unless sponsorship is mentioned.
-  - Seniority: Mid to Senior level
-  - EXCLUDE: Project Manager, Product Manager, or any non-engineering roles
+    ${config.requirements.remotePreference.map(r => `• ${r}`).join('\n    ')}
+  - Relocation/Visa Policy:
+    ${config.requirements.relocationPolicy.map(r => `• ${r}`).join('\n    ')}
+  - EXCLUDE: ${config.requirements.exclude.join(', ')}
 `;
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
@@ -59,20 +53,19 @@ function startSpinner(label: string): () => void {
   }, 80);
   return () => {
     clearInterval(id);
-    process.stdout.write('\r\x1b[K'); // clear spinner line
+    process.stdout.write('\r\x1b[K');
   };
 }
 
 async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
-  // const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // AI Studio
-  const model = vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const batches = chunkArray(jobs, 10);
+  const model = vertexAI.getGenerativeModel({ model: config.model });
+  const batches = chunkArray(jobs, config.batchSize);
   const filtered: MatchedJob[] = [];
 
   for (const batch of batches) {
     const prompt = `
       You are a job search assistant. Given these listings and requirements,
-      return ONLY a JSON array of strong matches (score 7+/10).
+      return ONLY a JSON array of strong matches (score ${config.matchScoreThreshold}+/10).
 
       MY REQUIREMENTS:
       ${MY_REQUIREMENTS}
@@ -86,13 +79,13 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
     `;
 
     let attempt = 0;
-    const maxAttempts = 3;
-    while (attempt < maxAttempts) {
-      const stopSpinner = startSpinner(`Vertex AI filtering batch ${batches.indexOf(batch) + 1}/${batches.length}...`);
+    while (attempt < config.maxRetries) {
+      const stopSpinner = startSpinner(
+        `Vertex AI filtering batch ${batches.indexOf(batch) + 1}/${batches.length}...`
+      );
       try {
         const result = await model.generateContent(prompt);
         stopSpinner();
-        // Vertex AI SDK uses candidates array instead of .text() helper
         const raw = result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         const text = raw.replace(/```json|```/g, '').trim();
         const matches: MatchedJob[] = JSON.parse(text);
@@ -102,9 +95,9 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
         stopSpinner();
         const is429 = err?.status === 429 || err?.message?.includes('429');
         attempt++;
-        if (is429 && attempt < maxAttempts) {
-          const waitMs = 15000 * attempt; // 15s, 30s
-          console.warn(`Rate limit hit. Retrying in ${waitMs / 1000}s... (attempt ${attempt}/${maxAttempts})`);
+        if (is429 && attempt < config.maxRetries) {
+          const waitMs = config.retryDelayMs * attempt;
+          console.warn(`Rate limit hit. Retrying in ${waitMs / 1000}s... (attempt ${attempt}/${config.maxRetries})`);
           await sleep(waitMs);
         } else {
           console.error('AI filter error:', err);
@@ -112,8 +105,7 @@ async function filterWithAI(jobs: JobListing[]): Promise<MatchedJob[]> {
         }
       }
     }
-    // Small delay between batches to stay within RPM limits
-    await sleep(2000);
+    await sleep(config.batchDelayMs);
   }
 
   return filtered;

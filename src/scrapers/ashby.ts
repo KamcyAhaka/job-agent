@@ -12,7 +12,7 @@ interface AshbyJob {
   publishedAt: string;
 }
 
-export async function scrapeAshby(keywords: string[]): Promise<JobListing[]> {
+export async function scrapeAshby(keywords: readonly string[]): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   for (const company of ASHBY_COMPANIES) {

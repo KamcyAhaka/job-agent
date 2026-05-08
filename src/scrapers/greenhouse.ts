@@ -13,7 +13,7 @@ interface GreenhouseJob {
   updated_at: string;
 }
 
-export async function scrapeGreenhouse(keywords: string[]): Promise<JobListing[]> {
+export async function scrapeGreenhouse(keywords: readonly string[]): Promise<JobListing[]> {
   const jobs: JobListing[] = [];
 
   for (const company of GREENHOUSE_COMPANIES) {

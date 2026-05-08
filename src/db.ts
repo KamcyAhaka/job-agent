@@ -63,12 +63,12 @@ export async function saveRejectedJobs(jobs: JobListing[]): Promise<void> {
   console.log(`Marked ${jobs.length} rejected jobs as "seen" in rejected_leads.`);
 }
 
-export async function getUnnotifiedJobs(): Promise<{ id: string; data: MatchedJob }[]> {
+export async function getUnnotifiedJobs(limit = 20): Promise<{ id: string; data: MatchedJob }[]> {
   const snapshot = await db
     .collection('job_leads')
     .where('notified', '==', false)
     .orderBy('savedAt', 'desc')
-    .limit(20)
+    .limit(limit)  // ← now uses the parameter
     .get();
 
   return snapshot.docs.map(doc => ({
