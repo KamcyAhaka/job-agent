@@ -69,3 +69,7 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Compiled JS leaking into src
+src/**/*.js
+src/**/*.js.map
