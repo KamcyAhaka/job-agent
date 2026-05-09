@@ -1,53 +1,57 @@
-# 🔍 Job Agent
+# Job Agent
 
-An automated AI-powered job search agent that scrapes multiple job boards daily, filters listings against your requirements using Gemini 2.5 Flash, finds key contacts at target companies, saves results to Firebase Firestore, and delivers a rich digest to Slack.
+An automated AI-powered job search agent that scrapes multiple job boards daily, filters listings against your requirements using **Gemini 2.5 Flash via Vertex AI**, finds key contacts at target companies, saves results to Firebase Firestore, and delivers a rich digest to Slack.
 
-Runs entirely on a **zero-dollar budget** using GitHub Actions, Google Gemini's free tier, and Firebase's free Spark plan.
+Runs on a **near-zero budget** using GitHub Actions, Vertex AI, and Firebase.
 
 ---
 
 ## How It Works
 
 ```
-GitHub Actions (cron: 8am weekdays)
+GitHub Actions (cron: weekdays)
         │
         ▼
-Scrape Job Boards
-(Greenhouse, Lever ATSs — no login needed)
+Scrape 5 Job Boards in Parallel
+(Greenhouse, Lever, Ashby, RemoteOK, WeWorkRemotely — no login needed)
         │
         ▼
-Gemini 2.5 Flash — Filter & Score
-(matches against your stack + seniority requirements)
+Deduplicate Against Firestore
+(skips jobs already seen or previously rejected)
         │
         ▼
-Hunter.io — Find Key Contacts
+Gemini 2.5 Flash via Vertex AI — Filter & Score
+(matches against your stack, seniority, location, visa requirements)
+        │
+        ▼
+Hunter.io — Find Key Contacts (optional)
 (engineering managers, recruiters at target companies)
         │
         ▼
-Firebase Firestore — Deduplicate & Save
+Firebase Firestore — Save Matches + Rejections
         │
         ▼
-GitHub Actions (cron: 12pm weekdays)
-Slack Digest — Rich block-kit message with apply buttons
+GitHub Actions (cron: midday weekdays)
+Slack Digest — Rich Block Kit message with scores, reasoning, apply buttons
         │
         ▼
 Firebase Cloud Function
-Slack /jobs slash command — query leads on demand
+Slack /jobs slash command — query your leads on demand
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool | Free Tier |
+| Layer | Tool | Cost |
 |---|---|---|
-| Scheduler | GitHub Actions | 2,000 min/month |
-| Scraping | Greenhouse + Lever public APIs | Free |
-| AI Filtering | Gemini 2.5 Flash | 1,500 req/day |
-| Database | Firebase Firestore | 50k reads / 20k writes/day |
-| Contact Lookup | Hunter.io | 25 searches/month |
+| Scheduler | GitHub Actions | Free |
+| Scraping | Greenhouse, Lever, Ashby, RemoteOK, WWR public APIs | Free |
+| AI Filtering | Gemini 2.5 Flash via Vertex AI | ~$0.01–0.05/day |
+| Database | Firebase Firestore | Free (50k reads / 20k writes/day) |
+| Contact Lookup | Hunter.io | Free (25 searches/month) |
 | Notifications | Slack Incoming Webhooks | Free |
-| Slash Command | Firebase Cloud Functions | 2M invocations/month |
+| Slash Command | Firebase Cloud Functions | Free (2M invocations/month) |
 
 ---
 
@@ -57,14 +61,18 @@ Slack /jobs slash command — query leads on demand
 job-agent/
 ├── .github/
 │   └── workflows/
-│       ├── scrape.yml          # Runs 8am weekdays — scrapes + saves
-│       └── notify.yml          # Runs 12pm weekdays — sends Slack digest
+│       ├── scrape.yml          # Scrapes + saves — runs weekday mornings with manual trigger
+│       └── notify.yml          # Sends Slack digest — runs weekday midday with manual trigger
 ├── src/
 │   ├── scrapers/
-│   │   ├── greenhouse.ts       # Greenhouse ATS scraper
-│   │   ├── lever.ts            # Lever ATS scraper
-│   │   └── index.ts            # Aggregates all scrapers + shared keywords
-│   ├── agent.ts                # Main entry — orchestrates scrape → filter → save
+│   │   ├── greenhouse.ts       # Greenhouse ATS public API
+│   │   ├── lever.ts            # Lever ATS public API
+│   │   ├── ashby.ts            # Ashby ATS public API
+│   │   ├── remoteok.ts         # RemoteOK public API
+│   │   ├── weworkremotely.ts   # WeWorkRemotely RSS feed
+│   │   └── index.ts            # Aggregates all scrapers
+│   ├── agent.ts                # Main entry — scrape → deduplicate → filter → save
+│   ├── config.ts               # All configuration lives here
 │   ├── contacts.ts             # Hunter.io contact lookup
 │   ├── db.ts                   # Firestore read/write helpers
 │   ├── notify.ts               # Slack digest sender
@@ -73,9 +81,9 @@ job-agent/
 │   └── src/
 │       └── index.ts            # Firebase Cloud Function — Slack /jobs command
 ├── .env                        # Local only — never commit this
+├── .env.example                # Template — commit this
 ├── .gitignore
 ├── tsconfig.json
-├── tsconfig.functions.json
 └── package.json
 ```
 
@@ -83,13 +91,13 @@ job-agent/
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - npm
 - Firebase CLI (`npm install -g firebase-tools`)
 - A [Firebase project](https://console.firebase.google.com) with Firestore enabled
-- A [Google AI Studio](https://aistudio.google.com) account for Gemini API key
+- A Google Cloud project with [Vertex AI API](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com) enabled
 - A Slack workspace where you can create apps
-- A [Hunter.io](https://hunter.io) account (optional but recommended)
+- A [Hunter.io](https://hunter.io) account (optional)
 
 ---
 
@@ -111,35 +119,44 @@ firebase init firestore   # Select your existing project
 firebase init functions   # Choose TypeScript, say Yes to install deps
 ```
 
-### 3. Environment Variables
+### 3. Enable Vertex AI
 
-Create a `.env` file in the root:
+Go to [console.cloud.google.com](https://console.cloud.google.com) → your project → **APIs & Services** → search for **Vertex AI API** → **Enable**.
+
+Your Firebase service account is used to authenticate with Vertex AI automatically — no separate API key needed.
+
+### 4. Environment Variables
+
+Copy the example file:
 
 ```bash
-GEMINI_API_KEY=your_gemini_api_key
-FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"..."}
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
-HUNTER_API_KEY=your_hunter_api_key
-SLACK_VERIFICATION_TOKEN=your_slack_verification_token
+cp .env.example .env
 ```
 
-> ⚠️ Never commit `.env` — it contains your Firebase service account credentials.
+Then fill in your `.env`:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT=   # Minified JSON — see below
+SLACK_WEBHOOK_URL=          # Incoming webhook URL
+SLACK_VERIFICATION_TOKEN=   # For the /jobs slash command
+HUNTER_API_KEY=             # Optional
+```
 
 #### Where to get each value
 
 | Variable | Where |
 |---|---|
-| `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) → Get API Key |
-| `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → Project Settings → Service Accounts → Generate new private key → copy entire JSON as a single line |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → Project Settings → Service Accounts → Generate new private key → minify to one line: `cat key.json \| tr -d '\n'` |
 | `SLACK_WEBHOOK_URL` | [api.slack.com/apps](https://api.slack.com/apps) → Your App → Incoming Webhooks → Add New Webhook |
-| `HUNTER_API_KEY` | [hunter.io](https://hunter.io) → Dashboard → API |
-| `SLACK_VERIFICATION_TOKEN` | [api.slack.com/apps](https://api.slack.com/apps) → Your App → Basic Information → Verification Token |
+| `SLACK_VERIFICATION_TOKEN` | Same Slack app → Basic Information → App Credentials → Verification Token |
+| `HUNTER_API_KEY` | [hunter.io](https://hunter.io) → Dashboard → API (optional — agent works without it) |
 
-### 4. GitHub Actions Secrets
 
-Go to your repo → **Settings → Secrets and variables → Actions** and add all five variables above as repository secrets.
+### 5. GitHub Actions Secrets
 
-### 5. Deploy the Slash Command Function
+Go to your repo → **Settings → Secrets and variables → Actions** and add the same variables as repository secrets.
+
+### 6. Deploy the Slack Slash Command
 
 ```bash
 cd functions
@@ -149,17 +166,55 @@ firebase deploy --only functions
 ```
 
 Copy the printed function URL. Then in your Slack app:
-- Go to **Slash Commands** → **Create New Command**
+- **Slash Commands** → **Create New Command**
 - Command: `/jobs`
 - Request URL: your Firebase Function URL
 - Save
 
 ---
 
+## Configuration
+
+**Everything is configured from a single file: `src/config.ts`**
+
+This is the only file you need to edit to personalise the agent for your own job search.
+
+```ts
+export const config = {
+  model: 'gemini-2.5-flash',
+  matchScoreThreshold: 7,       // minimum match score out of 10
+
+  requirements: {
+    roles: ['Frontend Developer', 'Full-stack Developer', 'Web Team Lead'],
+    stack: ['Vue.js', 'Nuxt.js', 'TypeScript', 'React', 'Next.js', 'Firebase'],
+    seniority: 'Mid to Senior',
+    location: 'Your City, Country (Timezone: GMT+X)',
+    remotePreference: [
+      'HIGH PRIORITY: Fully Remote (Worldwide or EMEA-based)',
+    ],
+    relocationPolicy: [
+      'Only consider non-remote roles IF they explicitly offer visa sponsorship.',
+    ],
+    exclude: ['Project Manager', 'Product Manager'],
+  },
+
+  keywords: ['frontend', 'vue', 'react', 'nuxt', 'full stack', 'typescript'],
+
+  // Companies to scrape per ATS — find more at boards.greenhouse.io/<slug>
+  greenhouse: ['airbnb', 'stripe', 'notion', 'figma', 'linear', 'vercel'],
+  lever: ['netflix', 'shopify', 'atlassian', 'discord', 'canva'],
+  ashby: ['ramp', 'mercury', 'retool', 'brex', 'loom'],
+
+  maxJobsPerDigest: 20,
+};
+```
+
+---
+
 ## Running Locally
 
 ```bash
-# Scrape jobs and save to Firestore
+# Scrape jobs and save matches to Firestore
 npm run scrape
 
 # Send Slack digest of unnotified jobs
@@ -168,9 +223,7 @@ npm run notify
 
 ---
 
-## Slack Usage
-
-Once deployed, use the `/jobs` slash command in any channel:
+## Slack Usage (Upcoming)
 
 | Command | Description |
 |---|---|
@@ -181,59 +234,37 @@ Once deployed, use the `/jobs` slash command in any channel:
 
 ---
 
-## Customizing Job Requirements
-
-Edit `MY_REQUIREMENTS` in `src/agent.ts`:
-
-```ts
-const MY_REQUIREMENTS = `
-  - Role: Frontend Developer, Full-stack Developer, or Web Team Lead
-  - Stack: Vue.js, Nuxt.js, TypeScript, Firebase, React, Next.js, React Native
-  - Type: Remote or hybrid preferred
-  - Seniority: Mid to Senior level
-  - Industry: Tech, Nonprofit, or Social Impact
-  - EXCLUDE: Project Manager, Product Manager, or any non-engineering roles
-`;
-```
-
 ## Adding More Companies
 
-**Greenhouse** — add to `GREENHOUSE_COMPANIES` in `src/scrapers/greenhouse.ts`:
-```ts
-const GREENHOUSE_COMPANIES = [
-  'airbnb', 'stripe', 'notion', // add more here
-];
-```
+Find out which ATS a company uses by checking their careers page URL:
 
-**Lever** — add to `LEVER_COMPANIES` in `src/scrapers/lever.ts`:
-```ts
-const LEVER_COMPANIES = [
-  'netflix', 'shopify', // add more here
-];
-```
+| URL pattern | ATS | Config key |
+|---|---|---|
+| `boards.greenhouse.io/company` | Greenhouse | `config.greenhouse` |
+| `jobs.lever.co/company` | Lever | `config.lever` |
+| `jobs.ashbyhq.com/company` | Ashby | `config.ashby` |
 
-> To find out which ATS a company uses, check their careers page URL:
-> - `boards.greenhouse.io/company` → Greenhouse
-> - `jobs.lever.co/company` → Lever
+For RemoteOK and WeWorkRemotely, all jobs are scraped and filtered by keyword — no company list needed.
 
-## Adding More Job Boards
+---
 
-Create a new file in `src/scrapers/` and export a function matching this signature:
+## How Deduplication Works
 
-```ts
-export async function scrapeYourBoard(keywords: string[]): Promise<JobListing[]>
-```
+The agent maintains two Firestore collections:
 
-Then import and call it in `src/scrapers/index.ts` inside `scrapeAll()`.
+- `job_leads` — matched jobs (score ≥ threshold)
+- `rejected_leads` — jobs scraped but below the match threshold
+
+Before sending any job to Vertex AI, it checks both collections. Jobs already in either collection are skipped — so you never pay to analyse the same listing twice and you never see the same job in your digest twice.
 
 ---
 
 ## Free Tier Limits
 
-| Service | Limit | Usage |
+| Service | Limit | Estimated Usage |
 |---|---|---|
-| GitHub Actions | 2,000 min/month | ~2 min/run × 2 runs/day × 20 days = ~80 min |
-| Gemini 2.5 Flash | 1,500 req/day | ~5–10 req/run |
+| GitHub Actions | 2,000 min/month | ~80 min/month |
+| Vertex AI | Pay per token | ~$0.01–0.05/day |
 | Firestore | 50k reads / 20k writes/day | Well within limits |
 | Hunter.io | 25 searches/month | Only runs on matched jobs |
 | Slack Webhooks | Unlimited | Free |
@@ -241,14 +272,32 @@ Then import and call it in `src/scrapers/index.ts` inside `scrapeAll()`.
 
 ---
 
+## Contributing
+
+Contributions welcome — especially new scrapers.
+
+### Adding a Scraper
+
+1. Create `src/scrapers/yourboard.ts`
+2. Export a function matching this signature:
+```ts
+export async function scrapeYourBoard(keywords: string[]): Promise<JobListing[]>
+```
+3. Import and call it inside `scrapeAll()` in `src/scrapers/index.ts`
+4. If ATS-based, add a company list entry to `src/config.ts`
+5. Add the company domain to `companyDomains` in `src/config.ts` for contact lookup
+6. Open a PR with a short description and example output
+
+---
+
 ## Roadmap
 
-- [ ] LinkedIn RSS feed scraper
-- [ ] RemoteOK + WeWorkRemotely scrapers
 - [ ] Workday scraper (Playwright-based)
-- [ ] Weekly summary report
-- [ ] Match score trend tracking
-- [ ] Slack interactive buttons to mark jobs as applied/skipped
+- [ ] LinkedIn Jobs RSS feed
+- [ ] Weekly summary digest
+- [ ] Slack buttons to mark jobs as applied / skipped
+- [ ] Match score trend tracking over time
+- [ ] `@job-agent/core` NPM package
 
 ---
 
