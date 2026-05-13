@@ -73,8 +73,8 @@ export async function getUnnotifiedJobs(
   const snapshot = await db
     .collection('job_leads')
     .where('notified', '==', false)
-    .orderBy('savedAt', 'desc')
-    .limit(limit) // ← now uses the parameter
+    .orderBy('matchScore', 'desc')
+    .limit(limit)
     .get();
 
   return snapshot.docs.map((doc) => ({

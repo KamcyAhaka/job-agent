@@ -41,6 +41,16 @@ export const config = {
     'fullstack',
     'web lead',
     'typescript',
+    'javascript',
+    'software engineer',
+    'web developer',
+    'ui engineer',
+    'software engineer',
+    'mid level developer',
+    'mid level engineer',
+    'senior software engineer',
+    'backend',
+    'node',
   ],
 
   // ─── Job Boards ──────────────────────────────────────────
@@ -60,7 +70,7 @@ export const config = {
   ashby: ['ramp', 'mercury', 'retool', 'brex', 'loom'],
 
   // ─── Notifications ───────────────────────────────────────
-  maxJobsPerDigest: 20,
+  maxJobsPerDigest: 10,
   slackBlockSafetyCap: 50,
 
   // ─── Contact Lookup ──────────────────────────────────────

@@ -5,6 +5,9 @@ import { scrapeRemoteOK } from './remoteok';
 import { scrapeWWR } from './weworkremotely';
 import { JobListing } from '../types';
 import { config } from '../config';
+import { scrapeJobicy } from './jobicy';
+import { scrapeRemotive } from './remotive';
+import { scrapeArbeitnow } from './arbeitnow';
 
 export async function scrapeAll(): Promise<JobListing[]> {
   const [greenhouse, lever, ashby, remoteok, wwr] = await Promise.all([
@@ -13,6 +16,9 @@ export async function scrapeAll(): Promise<JobListing[]> {
     scrapeAshby(config.keywords),
     scrapeRemoteOK(config.keywords),
     scrapeWWR(config.keywords),
+    scrapeJobicy(),
+    scrapeRemotive(),
+    scrapeArbeitnow(),
   ]);
 
   return [...greenhouse, ...lever, ...ashby, ...remoteok, ...wwr];
